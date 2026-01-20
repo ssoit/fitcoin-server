@@ -1,98 +1,394 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# FitCoin API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-ready backend API for the FitCoin fitness reward Android app. Users earn FitCoins by walking and working out.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tech Stack
 
-## Description
+- **Framework**: NestJS
+- **Database**: PostgreSQL
+- **ORM**: Prisma
+- **Authentication**: JWT + Kakao OAuth 2.0
+- **Language**: TypeScript
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Features
 
-```bash
-$ npm install
+- Kakao OAuth 2.0 login (primary authentication method)
+- JWT-based access and refresh tokens
+- Activity tracking (steps and workouts)
+- Reward system with daily limits to prevent abuse
+- Asset management (balance, history)
+- Production-ready architecture
+
+---
+
+## Project Structure
+
+```
+src/
+├── auth/                    # Authentication module
+│   ├── dto/                 # Data transfer objects
+│   ├── strategies/          # Passport strategies (JWT)
+│   ├── auth.controller.ts   # Auth endpoints
+│   ├── auth.service.ts      # Auth business logic
+│   └── auth.module.ts
+│
+├── user/                    # User module
+│   ├── dto/
+│   ├── user.controller.ts   # User profile endpoints
+│   ├── user.service.ts
+│   └── user.module.ts
+│
+├── activity/                # Activity tracking module
+│   ├── dto/
+│   ├── activity.controller.ts
+│   ├── activity.service.ts  # Step & workout recording logic
+│   └── activity.module.ts
+│
+├── asset/                   # Asset/reward module
+│   ├── dto/
+│   ├── asset.controller.ts  # Balance & history endpoints
+│   ├── asset.service.ts
+│   └── asset.module.ts
+│
+├── common/                  # Shared utilities
+│   ├── decorators/          # Custom decorators (@CurrentUser)
+│   ├── filters/             # Exception filters
+│   ├── guards/              # Auth guards (JWT)
+│   └── prisma/              # Prisma service
+│
+└── main.ts                  # Application entry point
 ```
 
-## Compile and run the project
+---
+
+## Database Schema
+
+### User
+- `id`: UUID (primary key)
+- `kakaoId`: String (unique)
+- `nickname`: String
+- `profileImage`: String (nullable)
+- `createdAt`: DateTime
+- `updatedAt`: DateTime
+
+### Activity
+- `id`: UUID (primary key)
+- `userId`: UUID (foreign key)
+- `type`: Enum (STEPS, WORKOUT)
+- `value`: Integer (steps count or minutes)
+- `createdAt`: DateTime
+
+### Asset
+- `id`: UUID (primary key)
+- `userId`: UUID (foreign key)
+- `amount`: Decimal
+- `reason`: String
+- `createdAt`: DateTime
+
+### RefreshToken
+- `id`: UUID (primary key)
+- `userId`: UUID (foreign key)
+- `token`: String (unique)
+- `expiresAt`: DateTime
+- `createdAt`: DateTime
+
+---
+
+## API Endpoints
+
+### Authentication
+
+**POST** `/api/auth/kakao`
+- Login with Kakao authorization code
+- Request body:
+  ```json
+  {
+    "authorizationCode": "string"
+  }
+  ```
+- Response:
+  ```json
+  {
+    "accessToken": "string",
+    "refreshToken": "string",
+    "user": {
+      "id": "string",
+      "kakaoId": "string",
+      "nickname": "string",
+      "profileImage": "string | null"
+    }
+  }
+  ```
+
+**POST** `/api/auth/refresh`
+- Refresh access token
+- Request body:
+  ```json
+  {
+    "refreshToken": "string"
+  }
+  ```
+- Response:
+  ```json
+  {
+    "accessToken": "string"
+  }
+  ```
+
+### User Profile
+
+**GET** `/api/me`
+- Get current user profile (requires authentication)
+- Headers: `Authorization: Bearer {accessToken}`
+- Response:
+  ```json
+  {
+    "id": "string",
+    "kakaoId": "string",
+    "nickname": "string",
+    "profileImage": "string | null",
+    "createdAt": "datetime"
+  }
+  ```
+
+### Activity
+
+**POST** `/api/activity/steps`
+- Record walking steps (requires authentication)
+- Headers: `Authorization: Bearer {accessToken}`
+- Request body:
+  ```json
+  {
+    "steps": 5000
+  }
+  ```
+- Response:
+  ```json
+  {
+    "id": "string",
+    "type": "STEPS",
+    "value": 5000,
+    "coinsEarned": 50,
+    "createdAt": "datetime",
+    "message": "Great job! You earned 50 FitCoins!"
+  }
+  ```
+
+**POST** `/api/activity/workout`
+- Record workout minutes (requires authentication)
+- Headers: `Authorization: Bearer {accessToken}`
+- Request body:
+  ```json
+  {
+    "minutes": 30
+  }
+  ```
+- Response:
+  ```json
+  {
+    "id": "string",
+    "type": "WORKOUT",
+    "value": 30,
+    "coinsEarned": 150,
+    "createdAt": "datetime",
+    "message": "Excellent workout! You earned 150 FitCoins!"
+  }
+  ```
+
+### Assets
+
+**GET** `/api/assets`
+- Get asset summary (requires authentication)
+- Headers: `Authorization: Bearer {accessToken}`
+- Response:
+  ```json
+  {
+    "totalBalance": 500,
+    "totalEarned": 500,
+    "earnedToday": 100
+  }
+  ```
+
+**GET** `/api/assets/history?page=1&limit=20`
+- Get asset transaction history (requires authentication)
+- Headers: `Authorization: Bearer {accessToken}`
+- Query params:
+  - `page`: number (default: 1)
+  - `limit`: number (default: 20)
+- Response:
+  ```json
+  {
+    "items": [
+      {
+        "id": "string",
+        "amount": 50,
+        "reason": "Walked 5000 steps",
+        "createdAt": "datetime"
+      }
+    ],
+    "total": 100,
+    "page": 1,
+    "limit": 20
+  }
+  ```
+
+---
+
+## Reward Logic
+
+### Steps
+- **Reward**: 10 FitCoins per 1,000 steps (configurable)
+- **Daily Limit**: 100 FitCoins from steps (configurable)
+- **Example**: 5,000 steps = 50 FitCoins
+
+### Workout
+- **Reward**: 5 FitCoins per minute (configurable)
+- **Daily Limit**: 100 FitCoins from workouts (configurable)
+- **Example**: 30 minutes workout = 150 FitCoins (capped at 100)
+
+All limits reset daily at midnight to prevent abuse.
+
+---
+
+## Local Development
+
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL
+- npm or yarn
+
+### Quick Start
+
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Set up environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values
+   ```
+
+3. **Run database migrations**:
+   ```bash
+   npx prisma migrate dev
+   ```
+
+4. **Start development server**:
+   ```bash
+   npm run start:dev
+   ```
+
+5. **Access the API**:
+   ```
+   http://localhost:3000/api
+   ```
+
+### Available Scripts
 
 ```bash
-# development
-$ npm run start
+# Development
+npm run start:dev      # Start with hot reload
 
-# watch mode
-$ npm run start:dev
+# Production
+npm run build          # Build for production
+npm run start:prod     # Run production build
 
-# production mode
-$ npm run start:prod
+# Database
+npx prisma studio      # Open Prisma Studio (database GUI)
+npx prisma migrate dev # Create and apply migrations
+npx prisma generate    # Generate Prisma Client
+
+# Code Quality
+npm run lint           # Run ESLint
+npm run format         # Format with Prettier
 ```
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## Kakao OAuth Setup
 
-# e2e tests
-$ npm run test:e2e
+1. Go to [Kakao Developers Console](https://developers.kakao.com/)
+2. Create a new application
+3. Navigate to **Kakao Login** settings
+4. Enable Kakao Login
+5. Add redirect URI: `http://localhost:3000/api/auth/kakao/callback`
+6. Get your **REST API Key** (Client ID)
+7. Get your **Client Secret** (in Security settings)
+8. Update `.env` with your credentials
 
-# test coverage
-$ npm run test:cov
-```
+---
+
+## Environment Variables
+
+See `.env.example` for all required variables:
+
+- **DATABASE_URL**: PostgreSQL connection string
+- **JWT_ACCESS_SECRET**: Secret for access tokens
+- **JWT_REFRESH_SECRET**: Secret for refresh tokens
+- **KAKAO_CLIENT_ID**: Kakao REST API key
+- **KAKAO_CLIENT_SECRET**: Kakao client secret
+- **Reward settings**: Configurable reward amounts and limits
+
+---
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed AWS deployment instructions.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Quick summary:
+- Deploy to AWS EC2 + RDS PostgreSQL
+- Use PM2 for process management
+- NGINX for reverse proxy
+- SSL/TLS with Let's Encrypt
+- CloudWatch for monitoring
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+---
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Security Features
 
-## Resources
+- JWT-based authentication
+- Refresh token rotation
+- Input validation with class-validator
+- SQL injection protection (Prisma)
+- CORS configuration
+- Rate limiting via daily reward caps
+- Environment variable management
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Production Considerations
+
+### Already Implemented
+- Database transactions for atomicity
+- Input validation
+- Error handling
+- Environment-based configuration
+- Secure JWT implementation
+- Daily limits to prevent abuse
+
+### Future Enhancements
+- Rate limiting (API level)
+- Logging (Winston, DataDog)
+- API documentation (Swagger)
+- Unit and integration tests
+- Caching (Redis)
+- CI/CD pipeline
+
+---
+
+## License
+Copyright (c) 2026 ssoit \
+For inquiries, contact: ssoitworks@gmail.com
+
+---
 
 ## Support
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+For deployment help, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+For API questions, see the API endpoints section above.
