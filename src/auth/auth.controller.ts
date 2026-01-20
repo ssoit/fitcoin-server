@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { KakaoLoginDto } from './dto/kakao-login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
@@ -15,5 +15,10 @@ export class AuthController {
   @Post('refresh')
   async refresh(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshAccessToken(refreshToken);
+  }
+
+  @Get('kakao/callback')
+  async kakaoCallback(@Query('code') code: string): Promise<AuthResponseDto> {
+    return this.authService.kakaoLogin(code);
   }
 }
