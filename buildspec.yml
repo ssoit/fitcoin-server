@@ -1,0 +1,39 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Installing Node.js 24...
+      - n 24
+      - node -v
+      - echo Installing dependencies...
+      - npm ci
+
+  pre_build:
+    commands:
+      - echo Generating Prisma client...
+      - npx prisma generate
+
+  build:
+    commands:
+      - echo Building the application...
+      - npm run build
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+
+artifacts:
+  files:
+    - dist/**/*
+    - node_modules/**/*
+    - package.json
+    - Procfile
+    - .ebextensions/**/*
+    - .platform/**/*
+    - prisma/**/*
+  discard-paths: no
+
+cache:
+  paths:
+    - node_modules/**/*
