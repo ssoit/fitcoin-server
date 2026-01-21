@@ -9,11 +9,6 @@ phases:
       - echo Installing dependencies...
       - npm ci
 
-  pre_build:
-    commands:
-      - echo Generating Prisma client...
-      - npx prisma generate
-
   build:
     commands:
       - echo Building the application...
