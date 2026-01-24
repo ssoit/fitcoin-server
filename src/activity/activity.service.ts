@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { ActivityType } from '@prisma/client';
 import { ActivityResponseDto } from './dto/activity-response.dto';
+import { TodayActivityDto } from './dto/today-activity.dto';
 
 @Injectable()
 export class ActivityService {
@@ -122,6 +123,48 @@ export class ActivityService {
       message: coinsEarned > 0
         ? `Excellent workout! You earned ${coinsEarned} FitCoins!`
         : 'Activity recorded, but daily reward limit reached.',
+    };
+  }
+
+  async getTodayActivity(userId: string): Promise<TodayActivityDto> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const [stepsData, workoutData, stepsRewards, workoutRewards] = await Promise.all([
+      this.prisma.activity.aggregate({
+        where: {
+          userId,
+          type: ActivityType.STEPS,
+          createdAt: { gte: today, lt: tomorrow },
+        },
+        _sum: { value: true },
+      }),
+      this.prisma.activity.aggregate({
+        where: {
+          userId,
+          type: ActivityType.WORKOUT,
+          createdAt: { gte: today, lt: tomorrow },
+        },
+        _sum: { value: true },
+      }),
+      this.getTodayRewards(userId, ActivityType.STEPS),
+      this.getTodayRewards(userId, ActivityType.WORKOUT),
+    ]);
+
+    return {
+      steps: {
+        total: stepsData._sum.value || 0,
+        rewardsEarned: stepsRewards,
+        rewardsMax: this.configService.get<number>('MAX_DAILY_STEP_REWARDS', 100),
+      },
+      workout: {
+        total: workoutData._sum.value || 0,
+        rewardsEarned: workoutRewards,
+        rewardsMax: this.configService.get<number>('MAX_DAILY_WORKOUT_REWARDS', 100),
+      },
     };
   }
 

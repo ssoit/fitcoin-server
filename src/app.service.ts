@@ -2,7 +2,15 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
+  private readonly startTime = Date.now();
+
+  getHello() {
+    const uptimeMs = Date.now() - this.startTime;
+    const uptimeSec = Math.floor(uptimeMs / 1000);
+
+    return {
+      status: 'ok',
+      uptime: `${uptimeSec}s`,
+    };
   }
 }

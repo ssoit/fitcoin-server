@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { ActivityService } from './activity.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -6,11 +6,17 @@ import type { JwtPayload } from '../common/decorators/current-user.decorator';
 import { RecordStepsDto } from './dto/record-steps.dto';
 import { RecordWorkoutDto } from './dto/record-workout.dto';
 import { ActivityResponseDto } from './dto/activity-response.dto';
+import { TodayActivityDto } from './dto/today-activity.dto';
 
 @Controller('activity')
 @UseGuards(JwtAuthGuard)
 export class ActivityController {
   constructor(private readonly activityService: ActivityService) {}
+
+  @Get('today')
+  async getTodayActivity(@CurrentUser() user: JwtPayload): Promise<TodayActivityDto> {
+    return this.activityService.getTodayActivity(user.sub);
+  }
 
   @Post('steps')
   async recordSteps(
