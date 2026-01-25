@@ -9,15 +9,6 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import axios from 'axios';
 import { AuthResponseDto } from './dto/auth-response.dto';
 
-interface KakaoTokenResponse {
-  access_token: string;
-  token_type: string;
-  refresh_token: string;
-  expires_in: number;
-  scope: string;
-  refresh_token_expires_in: number;
-}
-
 interface KakaoUserInfo {
   id: number;
   kakao_account: {
@@ -36,13 +27,10 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async kakaoLogin(authorizationCode: string): Promise<AuthResponseDto> {
+  async kakaoLogin(kakaoAccessToken: string): Promise<AuthResponseDto> {
     try {
-      // 1. Exchange authorization code for Kakao access token
-      const kakaoToken = await this.getKakaoToken(authorizationCode);
-
-      // 2. Get Kakao user profile
-      const kakaoUser = await this.getKakaoUserInfo(kakaoToken.access_token);
+      // 1. Get Kakao user profile using access token
+      const kakaoUser = await this.getKakaoUserInfo(kakaoAccessToken);
 
       // 3. Find or create user
       let user = await this.prisma.user.findUnique({
@@ -77,34 +65,11 @@ export class AuthService {
         },
       };
     } catch (error) {
+      console.error('Kakao login error:', error?.response?.data || error?.message || error);
       if (error instanceof UnauthorizedException || error instanceof BadRequestException) {
         throw error;
       }
       throw new BadRequestException('Kakao login failed');
-    }
-  }
-
-  private async getKakaoToken(code: string): Promise<KakaoTokenResponse> {
-    try {
-      const response = await axios.post<KakaoTokenResponse>(
-        'https://kauth.kakao.com/oauth/token',
-        null,
-        {
-          params: {
-            grant_type: 'authorization_code',
-            client_id: this.configService.get<string>('KAKAO_CLIENT_ID'),
-            client_secret: this.configService.get<string>('KAKAO_CLIENT_SECRET'),
-            redirect_uri: this.configService.get<string>('KAKAO_REDIRECT_URI'),
-            code,
-          },
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
-          },
-        },
-      );
-      return response.data;
-    } catch (error) {
-      throw new UnauthorizedException('Failed to get Kakao token');
     }
   }
 
